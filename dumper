@@ -99,7 +99,7 @@ def download_and_restore_from_s3(host, bucket, filename, database, destination):
 
 def dump_database(host, database, user, path):
   ps = subprocess.Popen(
-        ['pg_dump', '-U', user, '-h ', host, '-Fc', database, '-f', path],
+        ['pg_dump', '-U', user, '-h', host, '-Fc', database, '-f', path],
         stdout=subprocess.PIPE
     )
   output = ps.communicate()[0]
