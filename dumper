@@ -67,12 +67,12 @@ def main():
 
   elif args.action == "BACKUP" and args.database is not None:
     print "BACKING UP"
-    dump_and_upload_to_s3(host, bucket, args.database, args.user)
+    dump_and_upload_to_s3(args.host, bucket, args.database, args.user)
 
 
   elif args.action == "RESTORE" and args.database is not None and args.filename is not None:
     print "RESTORE"
-    download_and_restore_from_s3(host, bucket, args.filename, args.database, args.path)
+    download_and_restore_from_s3(args.host, bucket, args.filename, args.database, args.path)
     # ADD CHECK IF DB ALREADY EXISTS
 
   else:
