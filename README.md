@@ -119,4 +119,4 @@ If it is not set or you want to override the ones in your environment variable, 
 
 ## Notes
 
-Storing in the AWS Glacier is cheaper but is not recommended for smaller sized files (< 256 KB) as it may become more expensive. Only store files in the Glacier if they are already for a long term safe keeping as it may take up to 4 hours to retrieve an item to your S3.
+Storing in the AWS Glacier is cheaper but is not recommended for smaller sized files (< 256 KB) as it may become more expensive. Only store files in the Glacier if they are already for long term safe keeping as it may take up to 4 hours to retrieve an item to your S3.
