@@ -98,7 +98,6 @@ def dump_and_upload_to_s3(host, bucket, database, user):
     prepare_dir(location)
 
     filename = database + "-" + time.strftime("%Y-%m-%d-%H-%M-%S") + ".sql"
-    print "[+] Database dump location: " + location + filename
 
     dump_database(host, database, user, location + filename)
     upload_to_s3(bucket, location + filename, filename)
@@ -120,10 +119,14 @@ def dump_database(host, database, user, path):
       )
     output = ps.communicate()[0]
 
+    print "[+] Database dump location: " + path
+
 def upload_to_s3(bucket, path, filename):
     k = Key(bucket)
     k.key = filename
     k.set_contents_from_filename(path)
+
+    print "[+] File " + filename + " Uploaded"
 
 def download_from_s3(bucket, filename, destination):
     key = bucket.get_key(filename)
@@ -164,9 +167,11 @@ def set_cronjob(bucket, database, hour):
         cron.remove(job)
         cron.write
 
-    
-    job  = cron.new(command='/usr/bin/echo', comment="-".join(['dumper', bucket, database]))
-    job.hour.every(hour)
+    cwd = os.getcwd()
+    source = ". " + cwd + "/env-vars; "
+    command = cwd + '/dumper -a BACKUP -d ' + database + ' -b ' + bucket + " >> dumper-cron.log"
+    job  = cron.new(command= source + command, comment="-".join(['dumper', bucket, database]))
+    job.setall('0 */' +  str(hour) + ' * * *')
     cron.write()
 
     print "[+] Added " + job.render()
