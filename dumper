@@ -9,6 +9,8 @@ import argparse
 from boto.s3.connection import S3Connection
 from boto.s3.key import Key
 from time import strftime
+from boto.s3.lifecycle import Lifecycle, Transition, Rule
+from crontab import CronTab
 
 
 BACKUP_PATH='/tmp/dumper-backups/'
@@ -50,6 +52,8 @@ def main():
     parser.add_argument('-d', '--database', nargs='?', type=str, help='database')
     parser.add_argument('-f', '--filename', nargs='?', type=str, help='filename')
     parser.add_argument('-t', '--path', nargs='?', type=str, help='Destination path for backup file')
+    parser.add_argument('-e', '--expiry', nargs='?', type=int, help='Expiry in days')
+    parser.add_argument('-c', '--schedule', nargs='?', type=int, help='Cron Schedule in hours')
     parser.add_argument('-b', '--bucket', nargs='?', type=str, help='AWS Bucket Name', required=True)
 
     parser.add_argument('--aws_key_id', nargs='?', type=str, help='AWS Access Key ID')
@@ -64,15 +68,27 @@ def main():
 
     if args.action == "FILES":
         show_keys(bucket)
+    elif args.action == "LIFECYCLE":
+        if args.expiry:
+            set_lifecycle(bucket, args.expiry)
+        else:
+            show_lifecycle(bucket)
+    elif args.action == 'CRON' and args.database and args.bucket:
+        if args.schedule:
+            # Set schedule
+            set_cronjob(args.bucket, args.database, args.schedule)
+        else:
+            show_cronjob(args.bucket, args.database)
 
-    elif args.action == "BACKUP" and args.database is not None:
+    elif args.action == "BACKUP" and args.database:
         print "[+] Backing up " + args.database
         dump_and_upload_to_s3(args.host, bucket, args.database, args.user)
 
 
-    elif args.action == "RESTORE" and args.database is not None and args.filename is not None:
+    elif args.action == "RESTORE" and args.database and args.filename:
         print "RESTORE"
-        download_and_restore_from_s3(args.host, bucket, args.filename, args.database, args.user, args.path)
+        download_and_restore_from_s3(args.host, bucket, args.filename, 
+                                     args.database, args.user, args.path)
 
     else:
         parser.print_help()
@@ -121,7 +137,9 @@ def restore_database(host, filename, database, user, destination):
       )
     output = ps.communicate()[0]
 
-    ps = subprocess.Popen(["pg_restore", "--verbose", "--clean", "--no-acl", "--no-owner",  "-h", host, "-U", user, "-d",  database, destination], stdout=subprocess.PIPE)
+    ps = subprocess.Popen(["pg_restore", "--verbose", "--clean", "--no-acl", 
+                           "--no-owner",  "-h", host, "-U", user, "-d",  database, destination], 
+                           stdout=subprocess.PIPE)
 
     output = ps.communicate()[0]
 
@@ -130,6 +148,43 @@ def restore_database(host, filename, database, user, destination):
 def show_keys(bucket):
     for key in bucket.list():
         print key.name.encode('utf-8')
+
+def show_lifecycle(bucket):
+    try:
+        current = bucket.get_lifecycle_config()
+        print current[0].transition
+    except:
+        print "[+] Lifecycle not yet defined for " + bucket.name + "."
+
+def set_cronjob(bucket, database, hour):
+    cron = CronTab(user=True)
+
+    for job in cron.find_comment("-".join(['dumper', bucket, database])):
+        print " ".join(["[+] Deleting old cron job for ", database, "at bucket", bucket])
+        cron.remove(job)
+        cron.write
+
+    
+    job  = cron.new(command='/usr/bin/echo', comment="-".join(['dumper', bucket, database]))
+    job.hour.every(hour)
+    cron.write()
+
+    print "[+] Added " + job.render()
+
+
+def show_cronjob(bucket, database):
+    cron = CronTab(user=True)
+    print " ".join(["[+] Cron jobs for database", database, "at", bucket])
+    for job in cron.find_comment("-".join(['dumper', bucket, database])):
+        print job
+
+def set_lifecycle(bucket, days):
+    to_glacier = Transition(days=days, storage_class='GLACIER')
+    rule = Rule('ruleid', '/', 'Enabled', transition=to_glacier)
+    lifecycle = Lifecycle()
+    lifecycle.append(rule)    
+
+    bucket.configure_lifecycle(lifecycle)
 
 if __name__ == '__main__':
     main()
