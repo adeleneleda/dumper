@@ -22,109 +22,114 @@ BACKUP_PATH='/tmp/dumper-backups/'
 '''
 
 def prepare_dir(dir_name):
-  if not os.path.exists(dir_name):
-      print "[+] Creating directory: %s" % dir_name
-      os.makedirs(dir_name)
+    if not os.path.exists(dir_name):
+        print "[+] Creating directory: %s" % dir_name
+        os.makedirs(dir_name)
 
 def establish_connection(access_key, secret_key, bucket_name):
-  if access_key is None:
-    access_key = os.environ['ATP_AWS_ACCESS_KEY_ID'].strip()
-  if secret_key is None:
-    secret_key = os.environ['ATP_AWS_SECRET_ACCESS_KEY'].strip()
+    if access_key is None:
+        access_key = os.environ['ATP_AWS_ACCESS_KEY_ID'].strip()
+    if secret_key is None:
+        secret_key = os.environ['ATP_AWS_SECRET_ACCESS_KEY'].strip()
 
-  conn = S3Connection(access_key, secret_key)
-  bucket = conn.get_bucket(bucket_name)
+    conn = S3Connection(access_key, secret_key)
+    bucket = conn.get_bucket(bucket_name)
 
-  return bucket
+    return bucket
 
 
 def main():
-  parser = argparse.ArgumentParser(prog='dumper',
-                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(prog='dumper',
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 
-  parser.add_argument('-a', '--action', nargs='?', type=str, default='BACKUP', help='Allowed values: BACKUP or RESTORE')
-  parser.add_argument('-s', '--host', nargs='?', type=str, default='localhost', help='host')
-  parser.add_argument('-u', '--user', nargs='?', type=str, default='postgres', help='username')
-  parser.add_argument('-p', '--password', nargs='?', type=str, default='', help='password')
-  parser.add_argument('-d', '--database', nargs='?', type=str, help='database')
-  parser.add_argument('-f', '--filename', nargs='?', type=str, help='filename')
-  parser.add_argument('-t', '--path', nargs='?', type=str, help='Destination path for backup file')
-  parser.add_argument('-b', '--bucket', nargs='?', type=str, help='AWS Bucket Name', required=True)
+    parser.add_argument('-a', '--action', nargs='?', type=str, default='BACKUP', help='Allowed values: BACKUP or RESTORE')
+    parser.add_argument('-s', '--host', nargs='?', type=str, default='localhost', help='host')
+    parser.add_argument('-u', '--user', nargs='?', type=str, default='postgres', help='username')
+    parser.add_argument('-p', '--password', nargs='?', type=str, default='', help='password')
+    parser.add_argument('-d', '--database', nargs='?', type=str, help='database')
+    parser.add_argument('-f', '--filename', nargs='?', type=str, help='filename')
+    parser.add_argument('-t', '--path', nargs='?', type=str, help='Destination path for backup file')
+    parser.add_argument('-b', '--bucket', nargs='?', type=str, help='AWS Bucket Name', required=True)
 
-  parser.add_argument('--aws_key_id', nargs='?', type=str, help='AWS Access Key ID')
-  parser.add_argument('--aws_secret_key', nargs='?', type=str, help='AWS Secret Access Key')
+    parser.add_argument('--aws_key_id', nargs='?', type=str, help='AWS Access Key ID')
+    parser.add_argument('--aws_secret_key', nargs='?', type=str, help='AWS Secret Access Key')
 
-  args = parser.parse_args()
-  print args
+    args = parser.parse_args()
+    # print args
 
-  # set_env_vars()
-  bucket = establish_connection(args.aws_key_id, args.aws_secret_key, args.bucket)
-
-
-  if args.action == "FILES":
-    show_keys(bucket)
-
-  elif args.action == "BACKUP" and args.database is not None:
-    print "BACKING UP"
-    dump_and_upload_to_s3(args.host, bucket, args.database, args.user)
+    # set_env_vars()
+    bucket = establish_connection(args.aws_key_id, args.aws_secret_key, args.bucket)
 
 
-  elif args.action == "RESTORE" and args.database is not None and args.filename is not None:
-    print "RESTORE"
-    download_and_restore_from_s3(args.host, bucket, args.filename, args.database, args.path)
-    # ADD CHECK IF DB ALREADY EXISTS
+    if args.action == "FILES":
+        show_keys(bucket)
 
-  else:
-    parser.print_help()
+    elif args.action == "BACKUP" and args.database is not None:
+        print "[+] Backing up " + args.database
+        dump_and_upload_to_s3(args.host, bucket, args.database, args.user)
+
+
+    elif args.action == "RESTORE" and args.database is not None and args.filename is not None:
+        print "RESTORE"
+        download_and_restore_from_s3(args.host, bucket, args.filename, args.database, args.user, args.path)
+
+    else:
+        parser.print_help()
 
 def dump_and_upload_to_s3(host, bucket, database, user):
-  location = BACKUP_PATH + "upload/"
-  prepare_dir(location)
+    location = BACKUP_PATH + "upload/"
+    prepare_dir(location)
 
-  filename = database + "-" + time.strftime("%Y-%m-%d-%H-%M-%S") + ".sql"
+    filename = database + "-" + time.strftime("%Y-%m-%d-%H-%M-%S") + ".sql"
+    print "[+] Database dump location: " + location + filename
 
-  dump_database(host, database, user, location + filename)
-  upload_to_s3(bucket, location + filename, filename)
+    dump_database(host, database, user, location + filename)
+    upload_to_s3(bucket, location + filename, filename)
 
-def download_and_restore_from_s3(host, bucket, filename, database, destination):
-  prepare_dir(BACKUP_PATH)
+def download_and_restore_from_s3(host, bucket, filename, database, user, destination):
+    prepare_dir(BACKUP_PATH)
 
-  if destination is None:
-    destination = BACKUP_PATH + filename
+    if destination is None:
+        destination = BACKUP_PATH + filename
 
-  download_from_s3(bucket, filename, destination)
-  restore_database(host, filename, database, destination)
+    download_from_s3(bucket, filename, destination)
+    restore_database(host, filename, database, user, destination)
 
 
 def dump_database(host, database, user, path):
-  ps = subprocess.Popen(
-        ['pg_dump', '-U', user, '-h', host, '-Fc', database, '-f', path],
-        stdout=subprocess.PIPE
-    )
-  output = ps.communicate()[0]
+    ps = subprocess.Popen(
+          ['pg_dump', '-U', user, '-h', host, '-Fc', database, '-f', path],
+          stdout=subprocess.PIPE
+      )
+    output = ps.communicate()[0]
 
 def upload_to_s3(bucket, path, filename):
-  k = Key(bucket)
-  k.key = filename
-  k.set_contents_from_filename(path)
+    k = Key(bucket)
+    k.key = filename
+    k.set_contents_from_filename(path)
 
 def download_from_s3(bucket, filename, destination):
-  key = bucket.get_key(filename)
-  key.get_contents_to_filename(destination)
+    key = bucket.get_key(filename)
+    key.get_contents_to_filename(destination)
 
-def restore_database(host, filename, database, destination):
-  print "createdb -U postgres " + database
+def restore_database(host, filename, database, user, destination):
 
-  subprocess.call("createdb -U postgres " + database, shell=True)
+    ps = subprocess.Popen(
+          ["createdb", database],
+          stdout=subprocess.PIPE
+      )
+    output = ps.communicate()[0]
 
-  print "pg_restore --verbose --clean --no-acl --no-owner -h " + host + " -U postgres -d " + database + " " +  destination
+    ps = subprocess.Popen(["pg_restore", "--verbose", "--clean", "--no-acl", "--no-owner",  "-h", host, "-U", user, "-d",  database, destination], stdout=subprocess.PIPE)
 
-  subprocess.call("pg_restore --verbose --clean --no-acl --no-owner -h " + host + " -U postgres -d " + database + " " +  destination, shell=True)
+    output = ps.communicate()[0]
+
+    print "[+] Finished restoring " + database
 
 def show_keys(bucket):
-  for key in bucket.list():
-    print key.name.encode('utf-8')
+    for key in bucket.list():
+        print key.name.encode('utf-8')
 
 if __name__ == '__main__':
-  main()
+    main()
