@@ -112,7 +112,7 @@ def download_from_s3(bucket, filename, destination):
 def restore_database(filename, database, destination):
   subprocess.call(["createdb -U postgres ", database], shell=True)
 
-  print "pg_restore --verbose --clean --no-acl --no-owner -h localhost -U postgres -d " + database + " " +  destination
+  print "pg_restore --verbose --clean --no-acl --no-owner -U postgres -d " + database + " " +  destination
 
   subprocess.call("pg_restore --verbose --clean --no-acl --no-owner -h localhost -U postgres -d " + database + " " +  destination, shell=True)
 
