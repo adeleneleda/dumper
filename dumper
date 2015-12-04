@@ -50,7 +50,7 @@ def main():
   parser.add_argument('-d', '--database', nargs='?', type=str, help='database')
   parser.add_argument('-f', '--filename', nargs='?', type=str, help='filename')
   parser.add_argument('-t', '--path', nargs='?', type=str, help='Destination path for backup file')
-  parser.add_argument('-b', '--bucket', nargs='?', type=str, help='AWS Bucket Name')
+  parser.add_argument('-b', '--bucket', nargs='?', type=str, help='AWS Bucket Name', required=True)
 
   parser.add_argument('--aws_key_id', nargs='?', type=str, help='AWS Access Key ID')
   parser.add_argument('--aws_secret_key', nargs='?', type=str, help='AWS Secret Access Key')
@@ -61,7 +61,11 @@ def main():
   # set_env_vars()
   bucket = establish_connection(args.aws_key_id, args.aws_secret_key, args.bucket)
 
-  if args.action == "BACKUP" and args.database is not None:
+
+  if args.action == "FILES":
+    show_keys(bucket)
+
+  elif args.action == "BACKUP" and args.database is not None:
     print "BACKING UP"
     dump_and_upload_to_s3(bucket, args.database, args.user)
 
@@ -111,12 +115,16 @@ def download_from_s3(bucket, filename, destination):
 
 def restore_database(filename, database, destination):
   print "createdb -U postgres " + database
-  
+
   subprocess.call("createdb -U postgres " + database, shell=True)
 
   print "pg_restore --verbose --clean --no-acl --no-owner -h localhost -U postgres -d " + database + " " +  destination
 
   subprocess.call("pg_restore --verbose --clean --no-acl --no-owner -h localhost -U postgres -d " + database + " " +  destination, shell=True)
+
+def show_keys(bucket):
+  for key in bucket.list():
+    print key.name.encode('utf-8')
 
 if __name__ == '__main__':
   main()
