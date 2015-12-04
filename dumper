@@ -79,7 +79,7 @@ def main():
     parser.print_help()
 
 def dump_and_upload_to_s3(host, bucket, database, user):
-  location = BACKUP_PATH + "upload"
+  location = BACKUP_PATH + "/upload"
   prepare_dir(location)
 
   filename = database + "-" + time.strftime("%Y-%m-%d-%H-%M-%S") + ".sql"
