@@ -6,7 +6,7 @@ Securing backups of databases is always one of the primary concerns especially i
 
 Doing regular backups is only a part of the solution because storing them safely is also as important. 
 
-__Dumper__ is a tool written in a Python that dumps your PostgreSQL database and uploads it to your S3 bucket. Restoring is as easy. It retrieves your dump from your S3 bucket and restores it to your specified database. With it you can also set how often do you want to make uplaoded backups via cron jobs and also how often do you want your database to be transferred to the AWS Glacier.
+__Dumper__ is a tool written in Python that dumps your PostgreSQL database and uploads it to your S3 bucket. Restoring is as easy. It retrieves your dump from your S3 bucket and restores it to your specified database. With it you can also set how often do you want to make uplaoded backups via cron jobs and also how often do you want your database to be transferred to the AWS Glacier.
 
 
 ## Prerequisites
