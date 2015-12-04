@@ -15,6 +15,8 @@ BACKUP_PATH='/tmp/dumper-backups/'
 
 '''
 
+./dumper -a BACKUP -d sparks1  -b 'atp-backups' --aws_key_id=`echo $ATP_AWS_ACCESS_KEY_ID`
+
 ./dumper -a RESTORE -d sparks1 -f 'atp_test2015-12-04-13-12-18.sql'  -b 'atp-backups' --aws_key_id=`echo $ATP_AWS_ACCESS_KEY_ID`
 
 '''
@@ -108,7 +110,7 @@ def download_from_s3(bucket, filename, destination):
   key.get_contents_to_filename(destination)
 
 def restore_database(filename, database, destination):
-  subprocess.call(["createdb", database])
+  subprocess.call(["createdb -U postgres", database])
 
   subprocess.call("pg_restore --verbose --clean --no-acl --no-owner -h localhost -U postgres -d " + database + " " +  destination, shell=True)
 
