@@ -67,39 +67,39 @@ def main():
 
   elif args.action == "BACKUP" and args.database is not None:
     print "BACKING UP"
-    dump_and_upload_to_s3(bucket, args.database, args.user)
+    dump_and_upload_to_s3(host, bucket, args.database, args.user)
 
 
   elif args.action == "RESTORE" and args.database is not None and args.filename is not None:
     print "RESTORE"
-    download_and_restore_from_s3(bucket, args.filename, args.database, args.path)
+    download_and_restore_from_s3(host, bucket, args.filename, args.database, args.path)
     # ADD CHECK IF DB ALREADY EXISTS
 
   else:
     parser.print_help()
 
-def dump_and_upload_to_s3(bucket, database, user):
+def dump_and_upload_to_s3(host, bucket, database, user):
   location = BACKUP_PATH + "upload"
   prepare_dir(location)
 
   filename = database + "-" + time.strftime("%Y-%m-%d-%H-%M-%S") + ".sql"
 
-  dump_database(database, user, location + filename)
+  dump_database(host, database, user, location + filename)
   upload_to_s3(bucket, location + filename, filename)
 
-def download_and_restore_from_s3(bucket, filename, database, destination):
+def download_and_restore_from_s3(host, bucket, filename, database, destination):
   prepare_dir(BACKUP_PATH)
 
   if destination is None:
     destination = BACKUP_PATH + filename
 
   download_from_s3(bucket, filename, destination)
-  restore_database(filename, database, destination)
+  restore_database(host, filename, database, destination)
 
 
-def dump_database(database, user, path):
+def dump_database(host, database, user, path):
   ps = subprocess.Popen(
-        ['pg_dump', '-U', user, '-Fc', database, '-f', path],
+        ['pg_dump', '-U', user, '-h ', host, '-Fc', database, '-f', path],
         stdout=subprocess.PIPE
     )
   output = ps.communicate()[0]
@@ -113,14 +113,14 @@ def download_from_s3(bucket, filename, destination):
   key = bucket.get_key(filename)
   key.get_contents_to_filename(destination)
 
-def restore_database(filename, database, destination):
+def restore_database(host, filename, database, destination):
   print "createdb -U postgres " + database
 
   subprocess.call("createdb -U postgres " + database, shell=True)
 
-  print "pg_restore --verbose --clean --no-acl --no-owner -h localhost -U postgres -d " + database + " " +  destination
+  print "pg_restore --verbose --clean --no-acl --no-owner -h " + host + " -U postgres -d " + database + " " +  destination
 
-  subprocess.call("pg_restore --verbose --clean --no-acl --no-owner -h localhost -U postgres -d " + database + " " +  destination, shell=True)
+  subprocess.call("pg_restore --verbose --clean --no-acl --no-owner -h " + host + " -U postgres -d " + database + " " +  destination, shell=True)
 
 def show_keys(bucket):
   for key in bucket.list():
